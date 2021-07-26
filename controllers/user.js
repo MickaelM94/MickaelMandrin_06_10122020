@@ -1,26 +1,24 @@
 const User = require('../models/User');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const sha256 = require("crypto-js/sha256")
+const maskData = require('maskdata');
 
 exports.signup = (req, res, next) => {
     bcrypt.hash(req.body.password, 10)
-    .then(hashPassword => {
-            const user = new User({
-            email: sha256('TOKEN_SECRET' + req.body.email),
-            password: hashPassword
-            });
-
-            user.save()
-            .then(() => res.status(201).json({ message: 'Utilisateur créé !' }))
-            .catch(error => res.status(400).json({ error }))
+    .then(hash => {
+        const user = new User({
+            email: req.body.email,
+            password: hash
+        });
+        user.save()
+        .then(() => res.status(201).json({ message: 'Utilisateur créé !' }))
+        .catch(error => res.status(400).json({ error }))
     })
+    .catch(error => res.status(500).json({ error }))
 };
 
 exports.login = (req, res, next) => {
-
-    const cipherEmail = sha256('TOKEN_SECRET' + req.body.email)
-    User.findOne({ email: cipherEmail })
+    User.findOne({ email: req.body.email })
     .then(user => {
         if (!user) {
             return res.status(401).json({ error : 'Utilisateur non trouvé !'});
@@ -42,4 +40,18 @@ exports.login = (req, res, next) => {
         .catch(error => res.status(500).json({ error }));
     })
     .catch(error => res.status(500).json({ error }))
+};
+
+exports.getOneUser = (req, res, next) => {
+
+    const emailMask2Options = {
+        maskWith: "*", 
+        unmaskedStartCharactersBeforeAt: 3,
+        unmaskedEndCharactersAfterAt: 2,
+        maskAtTheRate: false
     };
+
+    User.findOne({ _id: req.params.id })
+    .then(user => res.status(200).json(maskData.maskEmail2(user.email, emailMask2Options)))
+    .catch( error => res.status(400).json({ error }))
+}
